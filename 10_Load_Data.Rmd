@@ -1,0 +1,113 @@
+---
+title: "10_Load_Data"
+output: html_notebook
+---
+
+# What affects the number of daily fligths?
+
+## First, load in important libraries
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(modelr)
+```
+
+## Load in flights and related data
+
+```{r}
+library(readr)
+flights <- read_csv(
+  "data/flights.csv",
+  col_types = cols(
+    arr_delay = col_integer(),
+    arr_time = col_integer(),
+    day = col_integer(),
+    dep_delay = col_integer(),
+    dep_time = col_integer(),
+    flight = col_character(),
+    month = col_integer(),
+    sched_arr_time = col_integer(),
+    sched_dep_time = col_integer(),
+    year = col_integer()
+  )
+)
+```
+
+## What is the flight volume by day?
+
+There is no well formatted date time field for the departures. I will need to create a new column to be used throughout the analysis which mutates the current encoding.
+
+```{r}
+daily <- flights %>%
+  mutate(date = make_date(year, month, day)) %>%
+  group_by(date) %>%
+  summarise(count = n() ) %>%
+  arrange(desc(count))
+daily
+```
+
+Busiest day was day before thanksgiving
+
+```{r}
+daily <- flights %>%
+  mutate(date = make_date(year, month, day)) %>%
+  group_by(date) %>%
+  summarise(count = n() ) %>%
+  arrange(count)
+daily
+```
+
+Least traveled day was day OF thanksgiving
+
+Let's graph the time series of number of flights
+
+```{r}
+ggplot(data = daily) + 
+  geom_line(mapping = aes(x = date, y = count))
+```
+
+Spikes, drops in volume might be day of week
+We need an analysis of the dirtribution of flights by day of week
+
+We need to indicate day of week in data frame
+
+```{r}
+daily <- daily %>%
+  mutate(wday = wday(date, label = TRUE))
+daily
+```
+
+Now plot distribution of flights by day of week
+
+```{r}
+daily %>%
+  ggplot(mapping = aes(wday, count)) +
+  geom_boxplot()
+```
+
+I want to remove the efect of day of week. I will fit a linear regression model and graph the residuals.
+
+```{r}
+mod <- lm(count ~wday, data = daily)
+
+daily <- daily %>%
+  add_residuals(mod)
+daily
+```
+
+Now plot the residuals.
+
+```{r}
+daily %>%
+  ggplot(mapping = aes(date, resid)) +
+  geom_line()
+```
+
+drop in travel in january
+increase in travel in summer
+
+
+
+
